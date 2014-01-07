@@ -48,7 +48,7 @@ angular.module( "fm.components", [] )
 
                  $scope.ngModel = moment( modelMilliseconds );
 
-                 $scope.ensureModelIsWithinBounds = function(){
+                 $scope.ensureModelIsWithinBounds = function() {
                    // Constrain model value to be in given bounds.
                    if( $scope.ngModel.isBefore( $scope.startTime ) ) {
                      $scope.ngModel = moment( $scope.startTime );
@@ -59,7 +59,16 @@ angular.module( "fm.components", [] )
                  };
                  $scope.ensureModelIsWithinBounds();
 
-
+                 // Calculate a larger step value for the given step.
+                 // This allows us to use the value for when we want to
+                 // increase or decrease the model in larger increments.
+                 $scope.$watch( "step", function( newStep, oldStep ) {
+                   if( newStep.asMilliseconds() < 1 ) {
+                     console.error( "fm-timepicker: Supplied step length is smaller than 1ms! Reverting to default." );
+                     $scope.step = moment( 30, "minutes" );
+                   }
+                   $scope.largeStep = moment.duration( newStep.asMilliseconds() * 5 );
+                 } )
                } )
 
   .directive( "fmTimepickerToggle", function() {
@@ -115,7 +124,10 @@ angular.module( "fm.components", [] )
 
             // Scroll the selected list item into view if the popup is open.
             if( scope.isOpen ) {
-              scrollSelectedItemIntoView();
+              // Use $timeout to give the DOM time to catch up.
+              $timeout( function() {
+                scrollSelectedItemIntoView();
+              } );
             }
           }
 
@@ -131,8 +143,8 @@ angular.module( "fm.components", [] )
             // Find the selected list item.
             var selectedListElement = $( "li.active", popupListElement );
             // Retrieve offset from the top and height of the list element.
-            var top = selectedListElement.position().top;
-            var height = selectedListElement.outerHeight( true );
+            var top = selectedListElement.length ? selectedListElement.position().top : 0;
+            var height = selectedListElement.length ? selectedListElement.outerHeight( true ) : 0;
             // Scroll the list to bring the selected list element into the view.
             $( popupListElement ).scrollTop( top - height );
           }
@@ -177,11 +189,12 @@ angular.module( "fm.components", [] )
             var time = moment( timestamp );
             scope.ngModel = time;
             scope.closePopup();
+            $(inputElement).blur();
           };
 
           /**
            * Determines whether a given timestamp in the list is currently the selected one.
-           * @param {Number} timestamp UNIC timestamp
+           * @param {Number} timestamp UNIX timestamp
            */
           scope.isActive = function( timestamp ) {
             return moment( timestamp ).isSame( scope.ngModel );
@@ -191,15 +204,21 @@ angular.module( "fm.components", [] )
             switch( event.keyCode ) {
               case 13:
                 // Enter
+                scope.togglePopup();
                 break;
               case 27:
                 // Escape
+                scope.closePopup();
                 break;
               case 33:
                 // Page up
+                scope.ngModel.subtract( scope.largeStep );
+                scope.ensureModelIsWithinBounds();
                 break;
               case 34:
                 // Page down
+                scope.ngModel.add( scope.largeStep );
+                scope.ensureModelIsWithinBounds();
                 break;
               case 38:
                 // Up arrow
@@ -218,6 +237,11 @@ angular.module( "fm.components", [] )
 
           inputElement.bind( "focus", scope.openPopup );
           inputElement.bind( "blur", scope.closePopup );
+
+          var popupListElement = element.find( "ul" );
+          popupListElement.bind( "mousedown", function(event){
+            event.preventDefault();
+          } );
         }
       }
     }
