@@ -147,10 +147,21 @@ angular.module( "fm.components", [] )
           };
 
           /**
+           * Reset the validity of the directive.
+           * @param {Boolean} to What to set the validity to?
+           */
+          function resetValidity( to ) {
+            controller.$setValidity( "time", to );
+            controller.$setValidity( "bounds", to );
+            controller.$setValidity( "step", to );
+          }
+
+          /**
            * Check if the value in the view is valid.
            * It has to represent a valid time in itself and it has to fit within the constraints defined through our input parameters.
            */
           function validateView() {
+            resetValidity( true );
             // Check if the string in the input box represents a valid date according to the rules set through parameters in our scope.
             var timeValid = checkTimeValueValid( scope.time ) && checkTimeValueWithinBounds( scope.time ) && checkTimeValueFitsStep( scope.time );
             if( timeValid ) {

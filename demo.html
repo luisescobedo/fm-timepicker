@@ -12,11 +12,11 @@
   <div class="row">
     <div class="well">
       <form class="form-horizontal" role="form" name="form" novalidate>
-        <div class="form-group" ng-class="{'has-error':form.test.$invalid}">
-          <label class="control-label col-sm-2" for="test">Test</label>
+        <div class="form-group" ng-class="{'has-error':form.time.$invalid}">
+          <label class="control-label col-sm-2" for="time">Test</label>
 
           <div class="col-sm-10">
-            <fm-timepicker id="test" name="test" ng-model="time" start-time="start" end-time="end" step="step"></fm-timepicker>
+            <fm-timepicker id="time" name="time" ng-model="time" start-time="start" end-time="end" step="step"></fm-timepicker>
           </div>
         </div>
         <hr>
@@ -41,6 +41,9 @@
             <input type="text" id="stepMinutes" class="form-control" ng-model="stepMinutes">
           </div>
         </div>
+        <p class="text-danger" ng-show="form.time.$error.time ">The selected time is not a valid time understood by fm-timepicker.</p>
+        <p class="text-danger" ng-show="form.time.$error.bounds ">The selected time does not lie within the specified start and end time.</p>
+        <p class="text-danger" ng-show="form.time.$error.step ">The selected time does not lie on a time value that would fit the given time step.</p>
       </form>
 
     </div>
