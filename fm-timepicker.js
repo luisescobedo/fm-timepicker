@@ -83,7 +83,7 @@ angular.module( "fm.components", [] )
       return {
         template   : "<div>" +
                      "  <div class='input-group'>" +
-                     "    <input type='text' class='form-control' value=\"{{ngModel|fmTimeFormat:'HH:mm'}}\">" +
+                     "    <input type='text' class='form-control' value=\"{{ngModel|fmTimeFormat:'HH:mm'}}\" ng-keyup='handleKeyboardInput($event)'>" +
                      "    <span class='input-group-btn'>" +
                      "      <button type='button' class='btn btn-default' fm-timepicker-toggle>" +
                      "        <span class='glyphicon glyphicon-time'></span>" +
@@ -112,6 +112,29 @@ angular.module( "fm.components", [] )
 
           function ensureUpdatedView() {
             scope.$root.$$phase || scope.$apply();
+
+            // Scroll the selected list item into view if the popup is open.
+            if( scope.isOpen ) {
+              scrollSelectedItemIntoView();
+            }
+          }
+
+          /**
+           * Scroll the time that is currently selected into view.
+           * This applies to the dropdown below the input element.
+           */
+          function scrollSelectedItemIntoView() {
+            // Find the popup.
+            var popupListElement = element.find( "ul" );
+            // Scroll it to the top, so that we can then get the correct relative offset for all list items.
+            $( popupListElement ).scrollTop( 0 );
+            // Find the selected list item.
+            var selectedListElement = $( "li.active", popupListElement );
+            // Retrieve offset from the top and height of the list element.
+            var top = selectedListElement.position().top;
+            var height = selectedListElement.outerHeight( true );
+            // Scroll the list to bring the selected list element into the view.
+            $( popupListElement ).scrollTop( top - height );
           }
 
           // --------------- Scope methods ---------------
@@ -163,6 +186,36 @@ angular.module( "fm.components", [] )
           scope.isActive = function( timestamp ) {
             return moment( timestamp ).isSame( scope.ngModel );
           };
+
+          scope.handleKeyboardInput = function( event ) {
+            switch( event.keyCode ) {
+              case 13:
+                // Enter
+                break;
+              case 27:
+                // Escape
+                break;
+              case 33:
+                // Page up
+                break;
+              case 34:
+                // Page down
+                break;
+              case 38:
+                // Up arrow
+                scope.ngModel.subtract( scope.step );
+                scope.ensureModelIsWithinBounds();
+                break;
+              case 40:
+                // Down arrow
+                scope.ngModel.add( scope.step );
+                scope.ensureModelIsWithinBounds();
+                break;
+              default:
+            }
+            ensureUpdatedView();
+          };
+
           inputElement.bind( "focus", scope.openPopup );
           inputElement.bind( "blur", scope.closePopup );
         }
