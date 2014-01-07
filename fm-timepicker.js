@@ -65,17 +65,29 @@ angular.module( "fm.components", [] )
                   controller : "fmTimepickerController",
                   require    : "ng-model",
                   link       : function postLink( scope, element, attributes ) {
+                    /**
+                     * Toggle the visibility of the popup.
+                     */
                     scope.toggle = function() {
                       scope.isOpen = !scope.isOpen;
-                    }
+                    };
+
+                    /**
+                     * Close the popup.
+                     */
                     scope.close = function() {
                       scope.isOpen = false;
-                    }
+                    };
+
+                    /**
+                     * Selects a given timestamp as the new value of the timepicker.
+                     * @param {Number} timestamp UNIX timestamp
+                     */
                     scope.select = function( timestamp ) {
                       var time = moment( timestamp );
                       scope.ngModel = time;
                       scope.close();
-                    }
+                    };
                   }
                 }
               } );
