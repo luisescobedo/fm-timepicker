@@ -10,7 +10,9 @@ angular.module( "fm.components", [] )
 
   .filter( "fmTimeStep", function() {
              return function( input, start, end ) {
-               if( null == start || null == end ) return input;
+               if( null == start || null == end ) {
+                 return input;
+               }
 
                start = moment( start );
                end = moment( end );
@@ -23,71 +25,111 @@ angular.module( "fm.components", [] )
            } )
 
   .controller( "fmTimepickerController", function( $scope ) {
-                 if( null == $scope.isOpen ) $scope.isOpen = false;
+                 if( null == $scope.isOpen ) {
+                   $scope.isOpen = false;
+                 }
+                 if( null == $scope.startTime ) {
+                   $scope.startTime = moment( "00:00", "HH:mm");
+                 }
+                 if( null == $scope.endTime ) {
+                   $scope.endTime = moment( "23:59:59", "HH:mm:ss" );
+                 }
                } )
 
   .directive( "fmTimepickerToggle", function() {
                 return {
                   restrict : "A",
                   link     : function postLink( scope, element, attributes ) {
+                    // Toggle the popup when the toggle button is clicked.
                     element.bind( "click", function() {
-                      scope.toggle();
-                    } )
+                      scope.togglePopup();
+                    } );
+                    // Hide the popup when we lose focus.
+                    element.bind( "blur", function() {
+                      scope.closePopup();
+                    } );
                   }
                 }
               } )
 
-  .directive( "fmTimepicker", function() {
-                return {
-                  template   : "<div>" +
-                               "  <div class='input-group'>" +
-                               "    <input type='text' class='form-control' value=\"{{ngModel|fmTimeFormat:'HH:mm'}}\"></input>" +
-                               "    <span class='input-group-btn'>" +
-                               "      <button type='button' class='btn btn-default' fm-timepicker-toggle>" +
-                               "        <span class='glyphicon glyphicon-time'></span>" +
-                               "      </button>" +
-                               "    </span>" +
-                               "  </div>" +
-                               "  <div class='dropdown' ng-class='{open:isOpen}'>" +
-                               "    <ul class='dropdown-menu form-control' style='height:auto; max-height:160px; overflow-y:scroll;'>" +
-                               "      <li ng-repeat='time in [] | fmTimeStep:startTime:endTime' ng-click='select(time)'><a href='#'>{{time|fmTimeFormat:'HH:mm'}}</a></li>" +
-                               "    </ul>" +
-                               "  </div>" +
-                               "</div>",
-                  replace    : true,
-                  restrict   : "E",
-                  scope      : {
-                    ngModel   : "=",
-                    startTime : "=",
-                    endTime   : "=",
-                    isOpen    : "=?"
-                  },
-                  controller : "fmTimepickerController",
-                  require    : "ng-model",
-                  link       : function postLink( scope, element, attributes ) {
-                    /**
-                     * Toggle the visibility of the popup.
-                     */
-                    scope.toggle = function() {
-                      scope.isOpen = !scope.isOpen;
-                    };
+  .directive( "fmTimepicker", [
+    "$timeout", function( $timeout ) {
+      return {
+        template   : "<div>" +
+                     "  <div class='input-group'>" +
+                     "    <input type='text' class='form-control' value=\"{{ngModel|fmTimeFormat:'HH:mm'}}\">" +
+                     "    <span class='input-group-btn'>" +
+                     "      <button type='button' class='btn btn-default' fm-timepicker-toggle>" +
+                     "        <span class='glyphicon glyphicon-time'></span>" +
+                     "      </button>" +
+                     "    </span>" +
+                     "  </div>" +
+                     "  <div class='dropdown' ng-class='{open:isOpen}'>" +
+                     "    <ul class='dropdown-menu form-control' style='height:auto; max-height:160px; overflow-y:scroll;'>" +
+                     "      <li ng-repeat='time in [] | fmTimeStep:startTime:endTime' ng-click='select(time)'><a href='#'>{{time|fmTimeFormat:'HH:mm'}}</a></li>" +
+                     "    </ul>" +
+                     "  </div>" +
+                     "</div>",
+        replace    : true,
+        restrict   : "E",
+        scope      : {
+          ngModel   : "=",
+          startTime : "=?",
+          endTime   : "=?",
+          isOpen    : "=?"
+        },
+        controller : "fmTimepickerController",
+        require    : "ngModel",
+        link       : function postLink( scope, element, attributes ) {
+          var inputElement = element.find( "input" );
 
-                    /**
-                     * Close the popup.
-                     */
-                    scope.close = function() {
-                      scope.isOpen = false;
-                    };
+          function ensureUpdatedView() {
+            scope.$root.$$phase || scope.$apply();
+          }
 
-                    /**
-                     * Selects a given timestamp as the new value of the timepicker.
-                     * @param {Number} timestamp UNIX timestamp
-                     */
-                    scope.select = function( timestamp ) {
-                      var time = moment( timestamp );
-                      scope.ngModel = time;
-                      scope.close();
-                    };
-                  }
-                }
-              } );
+          /**
+           * Toggle the visibility of the popup.
+           */
+          scope.togglePopup = function() {
+            scope.isOpen = !scope.isOpen;
+            ensureUpdatedView();
+          };
+
+          /**
+           * Open the popup.
+           */
+          scope.openPopup = function() {
+            scope.isOpen = true;
+            ensureUpdatedView();
+          };
+
+          /**
+           * Close the popup.
+           */
+          scope.closePopup = function() {
+            // Delay closing the popup by 200ms to ensure selection of
+            // list items can happen before the popup is hidden.
+            $timeout(
+              function() {
+                scope.isOpen = false;
+              }
+              , 200 );
+            ensureUpdatedView();
+          };
+
+          /**
+           * Selects a given timestamp as the new value of the timepicker.
+           * @param {Number} timestamp UNIX timestamp
+           */
+          scope.select = function( timestamp ) {
+            var time = moment( timestamp );
+            scope.ngModel = time;
+            scope.closePopup();
+          };
+
+          inputElement.bind( "focus", scope.openPopup );
+          inputElement.bind( "blur", scope.closePopup );
+        }
+      }
+    }
+  ] );
