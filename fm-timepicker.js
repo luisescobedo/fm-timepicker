@@ -29,7 +29,7 @@ angular.module( "fm.components", [] )
                    $scope.isOpen = false;
                  }
                  if( null == $scope.startTime ) {
-                   $scope.startTime = moment( "00:00", "HH:mm");
+                   $scope.startTime = moment( "00:00", "HH:mm" );
                  }
                  if( null == $scope.endTime ) {
                    $scope.endTime = moment( "23:59:59", "HH:mm:ss" );
@@ -66,7 +66,7 @@ angular.module( "fm.components", [] )
                      "  </div>" +
                      "  <div class='dropdown' ng-class='{open:isOpen}'>" +
                      "    <ul class='dropdown-menu form-control' style='height:auto; max-height:160px; overflow-y:scroll;'>" +
-                     "      <li ng-repeat='time in [] | fmTimeStep:startTime:endTime' ng-click='select(time)'><a href='#'>{{time|fmTimeFormat:'HH:mm'}}</a></li>" +
+                     "      <li ng-repeat='time in [] | fmTimeStep:startTime:endTime' ng-click='select(time)' ng-class='{active:isActive(time)}'><a href='#'>{{time|fmTimeFormat:'HH:mm'}}</a></li>" +
                      "    </ul>" +
                      "  </div>" +
                      "</div>",
@@ -86,6 +86,8 @@ angular.module( "fm.components", [] )
           function ensureUpdatedView() {
             scope.$root.$$phase || scope.$apply();
           }
+
+          // --------------- Scope methods ---------------
 
           /**
            * Toggle the visibility of the popup.
@@ -127,6 +129,13 @@ angular.module( "fm.components", [] )
             scope.closePopup();
           };
 
+          /**
+           * Determines whether a given timestamp in the list is currently the selected one.
+           * @param {Number} timestamp UNIC timestamp
+           */
+          scope.isActive = function( timestamp ) {
+            return moment( timestamp ).isSame( scope.ngModel );
+          };
           inputElement.bind( "focus", scope.openPopup );
           inputElement.bind( "blur", scope.closePopup );
         }
