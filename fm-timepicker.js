@@ -38,6 +38,28 @@ angular.module( "fm.components", [] )
                  if( null == $scope.step ) {
                    $scope.step = moment.duration( 30, "minutes" );
                  }
+
+                 // Round the model value up to the next valid time that fits the configured steps.
+                 var modelMilliseconds = $scope.ngModel.valueOf();
+                 var stepMilliseconds = $scope.step.asMilliseconds();
+
+                 modelMilliseconds -= modelMilliseconds % stepMilliseconds;
+                 modelMilliseconds += stepMilliseconds;
+
+                 $scope.ngModel = moment( modelMilliseconds );
+
+                 $scope.ensureModelIsWithinBounds = function(){
+                   // Constrain model value to be in given bounds.
+                   if( $scope.ngModel.isBefore( $scope.startTime ) ) {
+                     $scope.ngModel = moment( $scope.startTime );
+                   }
+                   if( $scope.ngModel.isAfter( $scope.endTime ) ) {
+                     $scope.ngModel = moment( $scope.endTime );
+                   }
+                 };
+                 $scope.ensureModelIsWithinBounds();
+
+
                } )
 
   .directive( "fmTimepickerToggle", function() {
