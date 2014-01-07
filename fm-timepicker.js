@@ -18,7 +18,7 @@ angular.module( "fm.components", [] )
                end = moment( end );
                step = step || moment.duration( 30, "minutes" );
 
-               for( var time = start.clone(); +time < +end; time.add( step ) ) {
+               for( var time = start.clone(); +time <= +end; time.add( step ) ) {
                  input.push( +time );
                }
                return input;
