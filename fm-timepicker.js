@@ -9,15 +9,16 @@ angular.module( "fm.components", [] )
            } )
 
   .filter( "fmTimeStep", function() {
-             return function( input, start, end ) {
+             return function( input, start, end, step ) {
                if( null == start || null == end ) {
                  return input;
                }
 
                start = moment( start );
                end = moment( end );
+               step = step || moment.duration( 30, "minutes" );
 
-               for( var time = start.clone(); +time < +end; time.add( "minutes", 30 ) ) {
+               for( var time = start.clone(); +time < +end; time.add( step ) ) {
                  input.push( +time );
                }
                return input;
@@ -33,6 +34,9 @@ angular.module( "fm.components", [] )
                  }
                  if( null == $scope.endTime ) {
                    $scope.endTime = moment( "23:59:59", "HH:mm:ss" );
+                 }
+                 if( null == $scope.step ) {
+                   $scope.step = moment.duration( 30, "minutes" );
                  }
                } )
 
@@ -66,7 +70,7 @@ angular.module( "fm.components", [] )
                      "  </div>" +
                      "  <div class='dropdown' ng-class='{open:isOpen}'>" +
                      "    <ul class='dropdown-menu form-control' style='height:auto; max-height:160px; overflow-y:scroll;'>" +
-                     "      <li ng-repeat='time in [] | fmTimeStep:startTime:endTime' ng-click='select(time)' ng-class='{active:isActive(time)}'><a href='#'>{{time|fmTimeFormat:'HH:mm'}}</a></li>" +
+                     "      <li ng-repeat='time in [] | fmTimeStep:startTime:endTime:step' ng-click='select(time)' ng-class='{active:isActive(time)}'><a href='#'>{{time|fmTimeFormat:'HH:mm'}}</a></li>" +
                      "    </ul>" +
                      "  </div>" +
                      "</div>",
@@ -76,6 +80,7 @@ angular.module( "fm.components", [] )
           ngModel   : "=",
           startTime : "=?",
           endTime   : "=?",
+          step      : "=?",
           isOpen    : "=?"
         },
         controller : "fmTimepickerController",
