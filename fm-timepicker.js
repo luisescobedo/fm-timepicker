@@ -70,7 +70,7 @@ angular.module( "fm.components", [] )
                  $scope.$watch( "step", function( newStep, oldStep ) {
                    if( newStep.asMilliseconds() < 1 ) {
                      console.error( "fm-timepicker: Supplied step length is smaller than 1ms! Reverting to default." );
-                     $scope.step = moment( 30, "minutes" );
+                     $scope.step = moment.duration( 30, "minutes" );
                    }
                    $scope.largeStep = moment.duration( newStep.asMilliseconds() * 5 );
                  } );
