@@ -48,16 +48,21 @@ angular.module( "fm.components", [] )
 
                  $scope.ngModel = moment( modelMilliseconds );
 
-                 $scope.ensureModelIsWithinBounds = function() {
+                 $scope.ensureTimeIsWithinBounds = function( time ) {
                    // Constrain model value to be in given bounds.
-                   if( $scope.ngModel.isBefore( $scope.startTime ) ) {
-                     $scope.ngModel = moment( $scope.startTime );
+                   if( time.isBefore( $scope.startTime ) ) {
+                     return moment( $scope.startTime );
                    }
-                   if( $scope.ngModel.isAfter( $scope.endTime ) ) {
-                     $scope.ngModel = moment( $scope.endTime );
+                   if( time.isAfter( $scope.endTime ) ) {
+                     return moment( $scope.endTime );
                    }
+                   return time;
                  };
-                 $scope.ensureModelIsWithinBounds();
+                 $scope.ngModel = $scope.ensureTimeIsWithinBounds( $scope.ngModel );
+
+                 $scope.isValueWithinBounds = function( value ) {
+                   return ( !$scope.ngModel.isBefore( $scope.startTime ) ) && ( !$scope.ngModel.isAfter( $scope.endTime ) );
+                 };
 
                  // Calculate a larger step value for the given step.
                  // This allows us to use the value for when we want to
@@ -68,7 +73,7 @@ angular.module( "fm.components", [] )
                      $scope.step = moment( 30, "minutes" );
                    }
                    $scope.largeStep = moment.duration( newStep.asMilliseconds() * 5 );
-                 } )
+                 } );
                } )
 
   .directive( "fmTimepickerToggle", function() {
@@ -92,7 +97,7 @@ angular.module( "fm.components", [] )
       return {
         template   : "<div>" +
                      "  <div class='input-group'>" +
-                     "    <input type='text' class='form-control' value=\"{{ngModel|fmTimeFormat:'HH:mm'}}\" ng-keyup='handleKeyboardInput($event)'>" +
+                     "    <input type='text' class='form-control' ng-model='time' ng-keyup='handleKeyboardInput($event)' ng-change='update()'>" +
                      "    <span class='input-group-btn'>" +
                      "      <button type='button' class='btn btn-default' fm-timepicker-toggle>" +
                      "        <span class='glyphicon glyphicon-time'></span>" +
@@ -116,8 +121,99 @@ angular.module( "fm.components", [] )
         },
         controller : "fmTimepickerController",
         require    : "ngModel",
-        link       : function postLink( scope, element, attributes ) {
+        link       : function postLink( scope, element, attributes, controller ) {
           var inputElement = element.find( "input" );
+
+          // Watch our input parameters and re-validate our view when they change.
+          scope.$watchCollection( "[startTime,endTime,step]", function() {
+            validateView();
+          } );
+
+          /**
+           * Invoked when we need to update the view due to a changed model value.
+           */
+          controller.$render = function() {
+            // Convert the moment instance we got to a string in our desired format.
+            var time = moment( controller.$modelValue ).format( "HH:mm" );
+            // Check if the given time is valid.
+            var timeValid = checkTimeValueValid( time ) && checkTimeValueWithinBounds( time ) && checkTimeValueFitsStep( time );
+
+            if( timeValid ) {
+              // If the time is valid, store the time string in the scope used by the input box.
+              scope.time = time;
+            } else {
+              throw new Error( "The provided time value is invalid." );
+            }
+          };
+
+          /**
+           * Check if the value in the view is valid.
+           * It has to represent a valid time in itself and it has to fit within the constraints defined through our input parameters.
+           */
+          function validateView() {
+            // Check if the string in the input box represents a valid date according to the rules set through parameters in our scope.
+            var timeValid = checkTimeValueValid( scope.time ) && checkTimeValueWithinBounds( scope.time ) && checkTimeValueFitsStep( scope.time );
+            if( timeValid ) {
+              // If the string is valid, convert it to a moment instance, store in the model and...
+              controller.$setViewValue( moment( scope.time, "HH:mm" ) );
+              // ...convert it back to a string in our desired format.
+              // This allows the user to input any partial format that moment accepts and we'll convert it to the format we expect.
+              scope.time = moment( scope.time, "HH:mm" ).format( "HH:mm" );
+            }
+          }
+
+          /**
+           * Check if a given string represents a valid time in our expected format.
+           * @param {String} timeString The timestamp is the expected format.
+           * @returns {boolean} true if the string is a valid time; false otherwise.
+           */
+          function checkTimeValueValid( timeString ) {
+            var time = timeString ? moment( timeString, "HH:mm" ) : moment.invalid();
+            if( !time.isValid() ) {
+              controller.$setValidity( "time", false );
+              controller.$setViewValue( null );
+              return false;
+            } else {
+              controller.$setValidity( "time", true );
+              return true;
+            }
+          }
+
+          /**
+           * Check if a given string represents a time within the bounds specified through our start and end times.
+           * @param {String} timeString The timestamp is the expected format.
+           * @returns {boolean} true if the string represents a valid time and the time is within the defined bounds; false otherwise.
+           */
+          function checkTimeValueWithinBounds( timeString ) {
+            var time = timeString ? moment( timeString, "HH:mm" ) : moment.invalid();
+            if( !time.isValid() || time.isBefore( scope.startTime ) || time.isAfter( scope.endTime ) ) {
+              controller.$setValidity( "bounds", false );
+              controller.$setViewValue( null );
+              return false;
+            } else {
+              controller.$setValidity( "bounds", true );
+              return true;
+            }
+          }
+
+          /**
+           * Check if a given string represents a time that lies on a the boundary of a time step.
+           * @param {String} timeString The timestamp is the expected format.
+           * @returns {boolean} true if the string represents a valid time and that time lies on a time step boundary; false otherwise.
+           */
+          function checkTimeValueFitsStep( timeString ) {
+            var time = timeString ? moment( timeString, "HH:mm" ) : moment.invalid();
+            var milliseconds = time.valueOf();
+            var stepMilliseconds = scope.step.asMilliseconds();
+            if( !time.isValid() || ( 0 != ( milliseconds % stepMilliseconds ) ) ) {
+              controller.$setValidity( "step", false );
+              controller.$setViewValue( null );
+              return false;
+            } else {
+              controller.$setValidity( "step", true );
+              return true;
+            }
+          }
 
           function ensureUpdatedView() {
             scope.$root.$$phase || scope.$apply();
@@ -155,7 +251,7 @@ angular.module( "fm.components", [] )
            * Toggle the visibility of the popup.
            */
           scope.togglePopup = function() {
-            scope.isOpen = !scope.isOpen;
+            scope.isOpen ? scope.closePopup() : scope.openPopup();
             ensureUpdatedView();
           };
 
@@ -163,8 +259,11 @@ angular.module( "fm.components", [] )
            * Open the popup.
            */
           scope.openPopup = function() {
-            scope.isOpen = true;
-            ensureUpdatedView();
+            if( !scope.isOpen ) {
+              scope.isOpen = true;
+              scope.modelPreview = scope.ngModel ? scope.ngModel.clone() : scope.startTime.clone();
+              ensureUpdatedView();
+            }
           };
 
           /**
@@ -187,9 +286,19 @@ angular.module( "fm.components", [] )
            */
           scope.select = function( timestamp ) {
             var time = moment( timestamp );
-            scope.ngModel = time;
+            scope.time = time.format( "HH:mm" );
             scope.closePopup();
-            $(inputElement).blur();
+            $( inputElement ).blur();
+          };
+
+          /**
+           * Check if the value in the input control is a valid timestamp.
+           */
+          scope.update = function() {
+            var timeValid = checkTimeValueValid( scope.time ) && checkTimeValueWithinBounds( scope.time );
+            if( timeValid ) {
+              controller.$setViewValue( moment( scope.time, "HH:mm" ) );
+            }
           };
 
           /**
@@ -197,14 +306,15 @@ angular.module( "fm.components", [] )
            * @param {Number} timestamp UNIX timestamp
            */
           scope.isActive = function( timestamp ) {
-            return moment( timestamp ).isSame( scope.ngModel );
+            return moment( timestamp ).isSame( scope.modelPreview );
           };
 
           scope.handleKeyboardInput = function( event ) {
             switch( event.keyCode ) {
               case 13:
                 // Enter
-                scope.togglePopup();
+                scope.ngModel = scope.modelPreview;
+                scope.closePopup();
                 break;
               case 27:
                 // Escape
@@ -212,23 +322,25 @@ angular.module( "fm.components", [] )
                 break;
               case 33:
                 // Page up
-                scope.ngModel.subtract( scope.largeStep );
-                scope.ensureModelIsWithinBounds();
+                scope.modelPreview.subtract( scope.largeStep );
+                scope.modelPreview = scope.ensureTimeIsWithinBounds( scope.modelPreview );
                 break;
               case 34:
                 // Page down
-                scope.ngModel.add( scope.largeStep );
-                scope.ensureModelIsWithinBounds();
+                scope.modelPreview.add( scope.largeStep );
+                scope.modelPreview = scope.ensureTimeIsWithinBounds( scope.modelPreview );
                 break;
               case 38:
                 // Up arrow
-                scope.ngModel.subtract( scope.step );
-                scope.ensureModelIsWithinBounds();
+                scope.openPopup();
+                scope.modelPreview.subtract( scope.step );
+                scope.modelPreview = scope.ensureTimeIsWithinBounds( scope.modelPreview );
                 break;
               case 40:
                 // Down arrow
-                scope.ngModel.add( scope.step );
-                scope.ensureModelIsWithinBounds();
+                scope.openPopup();
+                scope.modelPreview.add( scope.step );
+                scope.modelPreview = scope.ensureTimeIsWithinBounds( scope.modelPreview );
                 break;
               default:
             }
@@ -236,10 +348,19 @@ angular.module( "fm.components", [] )
           };
 
           inputElement.bind( "focus", scope.openPopup );
-          inputElement.bind( "blur", scope.closePopup );
+          /**
+           * Invoked when the input box loses focus.
+           */
+          inputElement.bind( "blur", function() {
+            // Close the popup, if it is open.
+            scope.closePopup();
+
+            validateView();
+          } );
+
 
           var popupListElement = element.find( "ul" );
-          popupListElement.bind( "mousedown", function(event){
+          popupListElement.bind( "mousedown", function( event ) {
             event.preventDefault();
           } );
         }
