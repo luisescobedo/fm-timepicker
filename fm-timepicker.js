@@ -1,3 +1,31 @@
+/**
+ * Copyright (C) 2014, HARTWIG Communication & Events
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to
+ * deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+ * sell copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ *
+ * Created: 2014-01-07 15:49
+ *
+ * @author Oliver Salzburg
+ * @copyright Copyright (C) 2014, HARTWIG Communication & Events
+ * @license http://opensource.org/licenses/mit-license.php MIT License
+ */
+
 angular.module( "fm.components", [] )
   .filter( "fmTimeFormat", function() {
              return function( input, format ) {
@@ -29,11 +57,14 @@ angular.module( "fm.components", [] )
                  if( null == $scope.isOpen ) {
                    $scope.isOpen = false;
                  }
+                 if( null == $scope.format ) {
+                   $scope.format = "HH:mm";
+                 }
                  if( null == $scope.startTime ) {
-                   $scope.startTime = moment( "00:00", "HH:mm" );
+                   $scope.startTime = moment.startOf( "day" );
                  }
                  if( null == $scope.endTime ) {
-                   $scope.endTime = moment( "23:59:59", "HH:mm:ss" );
+                   $scope.endTime = moment.endOf( "day" );
                  }
                  if( null == $scope.step ) {
                    $scope.step = moment.duration( 30, "minutes" );
@@ -106,7 +137,7 @@ angular.module( "fm.components", [] )
                      "  </div>" +
                      "  <div class='dropdown' ng-class='{open:isOpen}'>" +
                      "    <ul class='dropdown-menu form-control' style='height:auto; max-height:160px; overflow-y:scroll;'>" +
-                     "      <li ng-repeat='time in [] | fmTimeStep:startTime:endTime:step' ng-click='select(time)' ng-class='{active:isActive(time)}'><a href='#'>{{time|fmTimeFormat:'HH:mm'}}</a></li>" +
+                     "      <li ng-repeat='time in [] | fmTimeStep:startTime:endTime:step' ng-click='select(time)' ng-class='{active:isActive(time)}'><a href='#'>{{time|fmTimeFormat:format}}</a></li>" +
                      "    </ul>" +
                      "  </div>" +
                      "</div>",
@@ -114,6 +145,7 @@ angular.module( "fm.components", [] )
         restrict   : "E",
         scope      : {
           ngModel   : "=",
+          format    : "=?",
           startTime : "=?",
           endTime   : "=?",
           step      : "=?",
@@ -134,7 +166,7 @@ angular.module( "fm.components", [] )
            */
           controller.$render = function() {
             // Convert the moment instance we got to a string in our desired format.
-            var time = moment( controller.$modelValue ).format( "HH:mm" );
+            var time = moment( controller.$modelValue ).format( scope.format );
             // Check if the given time is valid.
             var timeValid = checkTimeValueValid( time ) && checkTimeValueWithinBounds( time ) && checkTimeValueFitsStep( time );
 
@@ -166,10 +198,10 @@ angular.module( "fm.components", [] )
             var timeValid = checkTimeValueValid( scope.time ) && checkTimeValueWithinBounds( scope.time ) && checkTimeValueFitsStep( scope.time );
             if( timeValid ) {
               // If the string is valid, convert it to a moment instance, store in the model and...
-              controller.$setViewValue( moment( scope.time, "HH:mm" ) );
+              controller.$setViewValue( moment( scope.time, scope.format ) );
               // ...convert it back to a string in our desired format.
               // This allows the user to input any partial format that moment accepts and we'll convert it to the format we expect.
-              scope.time = moment( scope.time, "HH:mm" ).format( "HH:mm" );
+              scope.time = moment( scope.time, scope.format ).format( scope.format );
             }
           }
 
@@ -179,7 +211,7 @@ angular.module( "fm.components", [] )
            * @returns {boolean} true if the string is a valid time; false otherwise.
            */
           function checkTimeValueValid( timeString ) {
-            var time = timeString ? moment( timeString, "HH:mm" ) : moment.invalid();
+            var time = timeString ? moment( timeString, scope.format ) : moment.invalid();
             if( !time.isValid() ) {
               controller.$setValidity( "time", false );
               controller.$setViewValue( null );
@@ -196,7 +228,7 @@ angular.module( "fm.components", [] )
            * @returns {boolean} true if the string represents a valid time and the time is within the defined bounds; false otherwise.
            */
           function checkTimeValueWithinBounds( timeString ) {
-            var time = timeString ? moment( timeString, "HH:mm" ) : moment.invalid();
+            var time = timeString ? moment( timeString, scope.format ) : moment.invalid();
             if( !time.isValid() || time.isBefore( scope.startTime ) || time.isAfter( scope.endTime ) ) {
               controller.$setValidity( "bounds", false );
               controller.$setViewValue( null );
@@ -209,14 +241,23 @@ angular.module( "fm.components", [] )
 
           /**
            * Check if a given string represents a time that lies on a the boundary of a time step.
-           * @param {String} timeString The timestamp is the expected format.
+           * @param {String} timeString The timestamp in the expected format.
            * @returns {boolean} true if the string represents a valid time and that time lies on a time step boundary; false otherwise.
            */
           function checkTimeValueFitsStep( timeString ) {
-            var time = timeString ? moment( timeString, "HH:mm" ) : moment.invalid();
-            var milliseconds = time.valueOf();
-            var stepMilliseconds = scope.step.asMilliseconds();
-            if( !time.isValid() || ( 0 != ( milliseconds % stepMilliseconds ) ) ) {
+            var time = timeString ? moment( timeString, scope.format ) : moment.invalid();
+            // Check first if the time string could be parsed as a valid timestamp.
+            var isValid = time.isValid();
+            if( isValid ) {
+              // Calculate the amount of milliseconds that passed since the specified start time.
+              var durationSinceStartTime = time.diff( scope.startTime );
+              // Calculate how many milliseconds are within the given time step.
+              var stepMilliseconds = scope.step.asMilliseconds();
+              // Check if the modulo operation has a remainder.
+              isValid = ( 0 == ( durationSinceStartTime % stepMilliseconds ) );
+            }
+
+            if( !isValid ) {
               controller.$setValidity( "step", false );
               controller.$setViewValue( null );
               return false;
@@ -297,7 +338,7 @@ angular.module( "fm.components", [] )
            */
           scope.select = function( timestamp ) {
             var time = moment( timestamp );
-            scope.time = time.format( "HH:mm" );
+            scope.time = time.format( scope.format );
             scope.closePopup();
             $( inputElement ).blur();
           };
@@ -308,7 +349,7 @@ angular.module( "fm.components", [] )
           scope.update = function() {
             var timeValid = checkTimeValueValid( scope.time ) && checkTimeValueWithinBounds( scope.time );
             if( timeValid ) {
-              controller.$setViewValue( moment( scope.time, "HH:mm" ) );
+              controller.$setViewValue( moment( scope.time, scope.format ) );
             }
           };
 
