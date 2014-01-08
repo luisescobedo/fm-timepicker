@@ -26,6 +26,8 @@
  * @license http://opensource.org/licenses/mit-license.php MIT License
  */
 
+"use strict";
+
 angular.module( "fm.components", [] )
   .filter( "fmTimeFormat", function() {
              return function( input, format ) {
@@ -107,22 +109,6 @@ angular.module( "fm.components", [] )
                  } );
                } )
 
-  .directive( "fmTimepickerToggle", function() {
-                return {
-                  restrict : "A",
-                  link     : function postLink( scope, element, attributes ) {
-                    // Toggle the popup when the toggle button is clicked.
-                    element.bind( "click", function() {
-                      scope.togglePopup();
-                    } );
-                    // Hide the popup when we lose focus.
-                    element.bind( "blur", function() {
-                      scope.closePopup();
-                    } );
-                  }
-                }
-              } )
-
   .directive( "fmTimepicker", [
     "$timeout", function( $timeout ) {
       return {
@@ -130,7 +116,7 @@ angular.module( "fm.components", [] )
                      "  <div class='input-group'>" +
                      "    <input type='text' class='form-control' ng-model='time' ng-keyup='handleKeyboardInput($event)' ng-change='update()'>" +
                      "    <span class='input-group-btn'>" +
-                     "      <button type='button' class='btn btn-default' fm-timepicker-toggle>" +
+                     "      <button type='button' class='btn btn-default' ng-class='{active:isOpen}'>" +
                      "        <span class='glyphicon glyphicon-time'></span>" +
                      "      </button>" +
                      "    </span>" +
@@ -154,8 +140,6 @@ angular.module( "fm.components", [] )
         controller : "fmTimepickerController",
         require    : "ngModel",
         link       : function postLink( scope, element, attributes, controller ) {
-          var inputElement = element.find( "input" );
-
           // Watch our input parameters and re-validate our view when they change.
           scope.$watchCollection( "[startTime,endTime,step]", function() {
             validateView();
@@ -297,40 +281,36 @@ angular.module( "fm.components", [] )
             $( popupListElement ).scrollTop( top - height );
           }
 
-          // --------------- Scope methods ---------------
-
           /**
-           * Toggle the visibility of the popup.
+           * Open the popup dropdown list.
            */
-          scope.togglePopup = function() {
-            scope.isOpen ? scope.closePopup() : scope.openPopup();
-            ensureUpdatedView();
-          };
-
-          /**
-           * Open the popup.
-           */
-          scope.openPopup = function() {
+          function openPopup() {
             if( !scope.isOpen ) {
               scope.isOpen = true;
               scope.modelPreview = scope.ngModel ? scope.ngModel.clone() : scope.startTime.clone();
               ensureUpdatedView();
             }
-          };
+          }
 
           /**
-           * Close the popup.
+           * Close the popup dropdown list.
            */
-          scope.closePopup = function() {
-            // Delay closing the popup by 200ms to ensure selection of
-            // list items can happen before the popup is hidden.
-            $timeout(
-              function() {
-                scope.isOpen = false;
-              }
-              , 200 );
-            ensureUpdatedView();
-          };
+          function closePopup( delayed ) {
+            if( delayed ) {
+              // Delay closing the popup by 200ms to ensure selection of
+              // list items can happen before the popup is hidden.
+              $timeout(
+                function() {
+                  scope.isOpen = false;
+                }
+                , 200 );
+            } else {
+              scope.isOpen = false;
+              ensureUpdatedView();
+            }
+          }
+
+          // --------------- Scope methods ---------------
 
           /**
            * Selects a given timestamp as the new value of the timepicker.
@@ -339,8 +319,7 @@ angular.module( "fm.components", [] )
           scope.select = function( timestamp ) {
             var time = moment( timestamp );
             scope.time = time.format( scope.format );
-            scope.closePopup();
-            $( inputElement ).blur();
+            closePopup();
           };
 
           /**
@@ -365,12 +344,14 @@ angular.module( "fm.components", [] )
             switch( event.keyCode ) {
               case 13:
                 // Enter
-                scope.ngModel = scope.modelPreview;
-                scope.closePopup();
+                if( scope.modelPreview ) {
+                  scope.ngModel = scope.modelPreview;
+                  scope.isOpen = false;
+                }
                 break;
               case 27:
                 // Escape
-                scope.closePopup();
+                closePopup();
                 break;
               case 33:
                 // Page up
@@ -384,13 +365,13 @@ angular.module( "fm.components", [] )
                 break;
               case 38:
                 // Up arrow
-                scope.openPopup();
+                openPopup();
                 scope.modelPreview.subtract( scope.step );
                 scope.modelPreview = scope.ensureTimeIsWithinBounds( scope.modelPreview );
                 break;
               case 40:
                 // Down arrow
-                scope.openPopup();
+                openPopup();
                 scope.modelPreview.add( scope.step );
                 scope.modelPreview = scope.ensureTimeIsWithinBounds( scope.modelPreview );
                 break;
@@ -399,19 +380,46 @@ angular.module( "fm.components", [] )
             ensureUpdatedView();
           };
 
-          inputElement.bind( "focus", scope.openPopup );
+          var inputElement = element.find( "input" );
+          var toggleButtonElement = element.find( "button" );
+          var popupListElement = element.find( "ul" );
+
+          /**
+           * Open the popup when the input box gets focus.
+           */
+          inputElement.bind( "focus", function() {
+            openPopup();
+          } );
+
           /**
            * Invoked when the input box loses focus.
            */
           inputElement.bind( "blur", function() {
-            // Close the popup, if it is open.
-            scope.closePopup();
-
-            validateView();
+            // Delay any action by 150ms
+            $timeout( function() {
+              // Check if we didn't get refocused in the meantime.
+              // This can happen if the input box is selected and the user toggles the dropdown.
+              // This would cause a hide and close in rapid succession, so don't do it.
+              if( !$( inputElement ).is( ":focus" ) ) {
+                closePopup();
+                validateView();
+              }
+            }, 150 );
           } );
 
+          /**
+           * Define the behavior of the dropdown toggle button.
+           */
+          toggleButtonElement.bind( "click", function() {
+            if( scope.isOpen ) {
+              $( inputElement ).focus();
+              closePopup();
+            } else {
+              // Focusing the input element will automatically open the popup
+              $( inputElement ).focus();
+            }
+          } );
 
-          var popupListElement = element.find( "ul" );
           popupListElement.bind( "mousedown", function( event ) {
             event.preventDefault();
           } );
