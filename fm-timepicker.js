@@ -49,6 +49,10 @@ angular.module( "fm.components", [] )
                step = step || moment.duration( 30, "minutes" );
 
                for( var time = start.clone(); +time <= +end; time.add( step ) ) {
+                 // We're using the UNIX offset integer value here.
+                 // When trying to return the actual moment instance (and then later format it through a filter),
+                 // you will get an infinite digest loop, because the returned objects in the resulting array
+                 // will always be new, unique instances. We always need to return the identical, literal values for each input.
                  input.push( +time );
                }
                return input;
