@@ -323,6 +323,7 @@ angular.module( "fm.components", [] )
           scope.select = function( timestamp ) {
             var time = moment( timestamp );
             scope.time = time.format( scope.format );
+            scope.update();
             closePopup();
           };
 
