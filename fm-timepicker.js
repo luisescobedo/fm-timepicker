@@ -209,14 +209,23 @@ angular.module( "fm.components", [] )
 
           /**
            * Check if a given string represents a time that lies on a the boundary of a time step.
-           * @param {String} timeString The timestamp is the expected format.
+           * @param {String} timeString The timestamp in the expected format.
            * @returns {boolean} true if the string represents a valid time and that time lies on a time step boundary; false otherwise.
            */
           function checkTimeValueFitsStep( timeString ) {
             var time = timeString ? moment( timeString, "HH:mm" ) : moment.invalid();
-            var milliseconds = time.valueOf();
-            var stepMilliseconds = scope.step.asMilliseconds();
-            if( !time.isValid() || ( 0 != ( milliseconds % stepMilliseconds ) ) ) {
+            // Check first if the time string could be parsed as a valid timestamp.
+            var isValid = time.isValid();
+            if( isValid ) {
+              // Calculate the amount of milliseconds that passed since the specified start time.
+              var durationSinceStartTime = time.diff( scope.startTime );
+              // Calculate how many milliseconds are within the given time step.
+              var stepMilliseconds = scope.step.asMilliseconds();
+              // Check if the modulo operation has a remainder.
+              isValid = ( 0 == ( durationSinceStartTime % stepMilliseconds ) );
+            }
+
+            if( !isValid ) {
               controller.$setValidity( "step", false );
               controller.$setViewValue( null );
               return false;
