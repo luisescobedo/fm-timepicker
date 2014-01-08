@@ -127,7 +127,7 @@ angular.module( "fm.components", [] )
                      "  </div>" +
                      "  <div class='dropdown' ng-class='{open:isOpen}'>" +
                      "    <ul class='dropdown-menu form-control' style='height:auto; max-height:160px; overflow-y:scroll;'>" +
-                     "      <li ng-repeat='time in [] | fmTimeStep:startTime:endTime:step' ng-click='select(time)' ng-class='{active:isActive(time)}'><a href='#'>{{time|fmTimeFormat:format}}</a></li>" +
+                     "      <li ng-repeat='time in [] | fmTimeStep:startTime:endTime:step' ng-click='select(time)' ng-class='{active:isActive(time)}'><a href='#' ng-click='preventDefault($event)'>{{time|fmTimeFormat:format}}</a></li>" +
                      "    </ul>" +
                      "  </div>" +
                      "</div>",
@@ -383,6 +383,14 @@ angular.module( "fm.components", [] )
               default:
             }
             ensureUpdatedView();
+          };
+
+          /**
+           * Prevent default behavior from happening.
+           * @param event
+           */
+          scope.preventDefault = function( event ) {
+            event.preventDefault();
           };
 
           var inputElement = element.find( "input" );
