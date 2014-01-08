@@ -125,6 +125,45 @@ angular.module( "fm.components", [] )
                      "      </button>" +
                      "    </span>" +
                      "  </div>" +
+
+                     "  <div class='modal-content'>" +
+                     "    <div class='spinner-popup modal-body' style='position:relative;'>" +
+                     "      <div class='row'>" +
+
+                     "        <div class='col-xs-4 text-center'>" +
+                     "          <button class='btn btn-default'>" +
+                     "            <span class='glyphicon glyphicon-chevron-up'>" +
+                     "          </button>" +
+                     "          <input type='text' class='form-control'>" +
+                     "          <button class='btn btn-default'>" +
+                     "            <span class='glyphicon glyphicon-chevron-down'>" +
+                     "          </button>" +
+                     "        </div>" +
+
+                     "        <div class='col-xs-4 text-center'>" +
+                     "          <button class='btn btn-default'>" +
+                     "            <span class='glyphicon glyphicon-chevron-up'>" +
+                     "          </button>" +
+                     "          <input type='text' class='form-control'>" +
+                     "          <button class='btn btn-default'>" +
+                     "            <span class='glyphicon glyphicon-chevron-down'>" +
+                     "          </button>" +
+                     "        </div>" +
+
+                     "        <div class='col-xs-4 text-center'>" +
+                     "          <button class='btn btn-default'>" +
+                     "            <span class='glyphicon glyphicon-chevron-up'>" +
+                     "          </button>" +
+                     "          <input type='text' class='form-control'>" +
+                     "          <button class='btn btn-default'>" +
+                     "            <span class='glyphicon glyphicon-chevron-down'>" +
+                     "          </button>" +
+                     "        </div>" +
+
+                     "      </div>" +
+                     "    </div>" +
+                     "  </div>" +
+
                      "  <div class='dropdown' ng-class='{open:isOpen}'>" +
                      "    <ul class='dropdown-menu form-control' style='height:auto; max-height:160px; overflow-y:scroll;'>" +
                      "      <li ng-repeat='time in [] | fmTimeStep:startTime:endTime:step' ng-click='select(time)' ng-class='{active:isActive(time)}'><a href='#' ng-click='preventDefault($event)'>{{time|fmTimeFormat:format}}</a></li>" +
