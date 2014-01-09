@@ -16,7 +16,7 @@
           <label class="control-label col-sm-2" for="time">Test</label>
 
           <div class="col-sm-10">
-            <fm-timepicker id="time" name="time" ng-model="time" start-time="start" end-time="end" step="step" format="timeFormat"></fm-timepicker>
+            <fm-timepicker id="time" name="time" ng-model="time" start-time="start" end-time="end" step="step" format="timeFormat" is-open="isOpen"></fm-timepicker>
             <p class="text-danger" ng-show="form.time.$error.time">The selected time is not a valid time understood by fm-timepicker.</p>
 
             <p class="text-danger" ng-show="form.time.$error.bounds">The selected time does not lie within the specified start and end time.</p>
@@ -64,7 +64,17 @@
             <p class="help-block">fm-timepicker actually supports arbitrary <a href="http://momentjs.com/docs/#/durations/">moment.duration</a> instances as the
               step value. This minute input is just used for convenience in the demo environment.</p>
           </div>
+        </div>
 
+        <div class="form-group">
+          <label class="col-sm-2 control-label">Is Open?</label>
+          <div class="col-sm-10">
+            <div class="checkbox">
+              <label class="control-label" for="isOpen">
+                <input type="checkbox" id="isOpen" ng-model="isOpen">
+              </label>
+            </div>
+          </div>
         </div>
       </form>
     </div>

@@ -60,21 +60,16 @@ angular.module( "fm.components", [] )
            } )
 
   .controller( "fmTimepickerController", function( $scope ) {
-                 if( null == $scope.isOpen ) {
-                   $scope.isOpen = false;
-                 }
-                 if( null == $scope.format ) {
-                   $scope.format = "HH:mm";
-                 }
-                 if( null == $scope.startTime ) {
-                   $scope.startTime = moment.startOf( "day" );
-                 }
-                 if( null == $scope.endTime ) {
-                   $scope.endTime = moment.endOf( "day" );
-                 }
-                 if( null == $scope.step ) {
-                   $scope.step = moment.duration( 30, "minutes" );
-                 }
+
+                 // Create day of reference
+                 $scope.reference = $scope.reference || moment();
+
+                 $scope.isOpen = $scope.isOpen || false;
+                 $scope.format = $scope.format || "HH:mm";
+                 $scope.startTime = $scope.startTime || $scope.reference.startOf( "day" );
+                 $scope.endTime = $scope.endTime || $scope.reference.endOf( "day" );
+                 $scope.step = $scope.step || moment.duration( 30, "minutes" );
+
 
                  // Round the model value up to the next valid time that fits the configured steps.
                  var modelMilliseconds = $scope.ngModel.valueOf();
@@ -85,6 +80,11 @@ angular.module( "fm.components", [] )
 
                  $scope.ngModel = moment( modelMilliseconds );
 
+                 /**
+                  * Returns a time value that is within the bounds given by the start and end time parameters.
+                  * @param {Moment} time The time value that should be constrained to be within the given bounds.
+                  * @returns {Moment} A new time value within the bounds, or the input instance.
+                  */
                  $scope.ensureTimeIsWithinBounds = function( time ) {
                    // Constrain model value to be in given bounds.
                    if( time.isBefore( $scope.startTime ) ) {
@@ -97,9 +97,24 @@ angular.module( "fm.components", [] )
                  };
                  $scope.ngModel = $scope.ensureTimeIsWithinBounds( $scope.ngModel );
 
-                 $scope.isValueWithinBounds = function( value ) {
-                   return ( !$scope.ngModel.isBefore( $scope.startTime ) ) && ( !$scope.ngModel.isAfter( $scope.endTime ) );
+                 /**
+                  * Makes sure that the moment instances we work with all use the same day as reference.
+                  * We need this because we might construct moment instances from all kinds of sources,
+                  * in the time picker, we only care about time values though and we still want to compare
+                  * them through the moment mechanics (which respect the full date).
+                  */
+                 $scope.constrainToReference = function() {
+                   if( !$scope.startTime.isSame( $scope.reference, "day" ) ) {
+                     $scope.startTime.year( $scope.reference.year() ).month( $scope.reference.month() ).date( $scope.reference.date() );
+                   }
+                   if( !$scope.endTime.isSame( $scope.reference, "day" ) ) {
+                     $scope.endTime.year( $scope.reference.year() ).month( $scope.reference.month() ).date( $scope.reference.date() );
+                   }
+                   if( !$scope.ngModel.isSame( $scope.reference, "day" ) ) {
+                     $scope.ngModel.year( $scope.reference.year() ).month( $scope.reference.month() ).date( $scope.reference.date() );
+                   }
                  };
+                 $scope.constrainToReference();
 
                  // Calculate a larger step value for the given step.
                  // This allows us to use the value for when we want to
@@ -146,6 +161,7 @@ angular.module( "fm.components", [] )
         link       : function postLink( scope, element, attributes, controller ) {
           // Watch our input parameters and re-validate our view when they change.
           scope.$watchCollection( "[startTime,endTime,step]", function() {
+            scope.constrainToReference();
             validateView();
           } );
 
