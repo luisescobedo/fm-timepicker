@@ -440,7 +440,7 @@ angular.module( "fm.components", [] )
                 // Page down
                 scope.modelPreview.add( scope.largeInterval );
                 scope.modelPreview = scope.ensureTimeIsWithinBounds( scope.modelPreview );
-                scope.activeIndex = Math.max( 0, scope.activeIndex + scope.largeIntervalIndexJump );
+                scope.activeIndex = Math.min( scope.largestPossibleIndex, scope.activeIndex + scope.largeIntervalIndexJump );
                 break;
               case 38:
                 // Up arrow
