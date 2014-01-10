@@ -38,17 +38,17 @@ angular.module( "fm.components", [] )
              }
            } )
 
-  .filter( "fmTimeStep", function() {
-             return function( input, start, end, step ) {
+  .filter( "fmTimeInterval", function() {
+             return function( input, start, end, interval ) {
                if( null == start || null == end ) {
                  return input;
                }
 
                start = moment( start );
                end = moment( end );
-               step = step || moment.duration( 30, "minutes" );
+               interval = interval || moment.duration( 30, "minutes" );
 
-               for( var time = start.clone(); +time <= +end; time.add( step ) ) {
+               for( var time = start.clone(); +time <= +end; time.add( interval ) ) {
                  // We're using the UNIX offset integer value here.
                  // When trying to return the actual moment instance (and then later format it through a filter),
                  // you will get an infinite digest loop, because the returned objects in the resulting array
@@ -68,15 +68,15 @@ angular.module( "fm.components", [] )
                  $scope.format = $scope.format || "HH:mm";
                  $scope.startTime = $scope.startTime || $scope.reference.startOf( "day" );
                  $scope.endTime = $scope.endTime || $scope.reference.endOf( "day" );
-                 $scope.step = $scope.step || moment.duration( 30, "minutes" );
-                 $scope.largeStep = $scope.largeStep || moment.duration( 60, "minutes" );
+                 $scope.interval = $scope.interval || moment.duration( 30, "minutes" );
+                 $scope.largeInterval = $scope.largeInterval || moment.duration( 60, "minutes" );
 
-                 // Round the model value up to the next valid time that fits the configured steps.
+                 // Round the model value up to the next valid time that fits the configured interval.
                  var modelMilliseconds = $scope.ngModel.valueOf();
-                 var stepMilliseconds = $scope.step.asMilliseconds();
+                 var intervalMilliseconds = $scope.interval.asMilliseconds();
 
-                 modelMilliseconds -= modelMilliseconds % stepMilliseconds;
-                 modelMilliseconds += stepMilliseconds;
+                 modelMilliseconds -= modelMilliseconds % intervalMilliseconds;
+                 modelMilliseconds += intervalMilliseconds;
 
                  $scope.ngModel = moment( modelMilliseconds );
 
@@ -97,6 +97,7 @@ angular.module( "fm.components", [] )
                  };
                  $scope.ngModel = $scope.ensureTimeIsWithinBounds( $scope.ngModel );
 
+
                  /**
                   * Makes sure that the moment instances we work with all use the same day as reference.
                   * We need this because we might construct moment instances from all kinds of sources,
@@ -116,20 +117,58 @@ angular.module( "fm.components", [] )
                  };
                  $scope.constrainToReference();
 
-                 // Check the supplied step for validity.
-                 $scope.$watch( "step", function( newStep, oldStep ) {
-                   if( newStep.asMilliseconds() < 1 ) {
-                     console.error( "fm-timepicker: Supplied step length is smaller than 1ms! Reverting to default." );
-                     $scope.step = moment.duration( 30, "minutes" );
+                 /**
+                  * Utility method to find the index of an item, in our collection of possible values, that matches a given time value.
+                  * @param {Moment} model A moment instance to look for in our possible values.
+                  */
+                 $scope.findActiveIndex = function( model ) {
+                   $scope.activeIndex = 0;
+                   // We step through each possible value instead of calculating the index directly,
+                   // to make sure we account for DST changes in the reference day.
+                   for( var time = $scope.startTime.clone(); +time <= +$scope.endTime; time.add( $scope.interval ), ++$scope.activeIndex ) {
+                     if( time.isSame( model ) ) {
+                       break;
+                     }
+                   }
+                 };
+                 // The index of the last element in our time value collection.
+                 $scope.largestPossibleIndex = Number.MAX_VALUE;
+                 // The amount of list items we should skip when we perform a large jump through the collection.
+                 $scope.largeIntervalIndexJump = Number.MAX_VALUE;
+                 // Seed the active index based on the current model value.
+                 $scope.findActiveIndex( $scope.ngModel );
+
+                 // Check the supplied interval for validity.
+                 $scope.$watch( "interval", function( newInterval, oldInterval ) {
+                   if( newInterval.asMilliseconds() < 1 ) {
+                     console.error( "[fm-timepicker] Error: Supplied interval length is smaller than 1ms! Reverting to default." );
+                     $scope.interval = moment.duration( 30, "minutes" );
                    }
                  } );
-                 // Check the supplied large step for validity.
-                 $scope.$watch( "largeStep", function( newStep, oldStep ) {
-                   if( newStep.asMilliseconds() < 10 ) {
-                     console.error( "fm-timepicker: Supplied large step length is smaller than 10ms! Reverting to default." );
-                     $scope.largeStep = moment.duration( 60, "minutes" );
+                 // Check the supplied large interval for validity.
+                 $scope.$watch( "largeInterval", function( newInterval, oldInterval ) {
+                   if( newInterval.asMilliseconds() < 10 ) {
+                     console.error( "[fm-timepicker] Error: Supplied large interval length is smaller than 10ms! Reverting to default." );
+                     $scope.largeInterval = moment.duration( 60, "minutes" );
                    }
                  } );
+                 // Watch the given interval values.
+                 $scope.$watchCollection( "[interval,largeInterval]", function( newValues ) {
+                   // Pick array apart.
+                   var newInterval = newValues[0];
+                   var newLargeInterval = newValues[1];
+                   // Get millisecond values for the intervals.
+                   var newIntervalMilliseconds = newInterval.asMilliseconds();
+                   var newLargeIntervalMilliseconds = newLargeInterval.asMilliseconds();
+                   // Check if the large interval is a multiple of the interval.
+                   if( 0 != ( newLargeIntervalMilliseconds % newIntervalMilliseconds ) ) {
+                     console.log( "[fm-timepicker] Warning: Large interval is not a multiple of interval! Using internally computed value instead." );
+                     $scope.largeInterval = moment.duration( newIntervalMilliseconds * 5 );
+                     newLargeIntervalMilliseconds = $scope.largeInterval.asMilliseconds();
+                   }
+                   // Calculate how many indices we need to skip for a large jump through our collection.
+                   $scope.largeIntervalIndexJump = newLargeIntervalMilliseconds / newIntervalMilliseconds;
+                 } )
                } )
 
   .directive( "fmTimepicker", [
@@ -146,7 +185,13 @@ angular.module( "fm.components", [] )
                      "  </div>" +
                      "  <div class='dropdown' ng-class='{open:isOpen}'>" +
                      "    <ul class='dropdown-menu form-control' style='height:auto; max-height:160px; overflow-y:scroll;'>" +
-                     "      <li ng-repeat='time in [] | fmTimeStep:startTime:endTime:step' ng-click='select(time)' ng-class='{active:isActive(time)}'><a href='#' ng-click='preventDefault($event)'>{{time|fmTimeFormat:format}}</a></li>" +
+                       // Fill an empty array with time values between start and end time with the given interval, then iterate over that array.
+                     "      <li ng-repeat='time in [] | fmTimeInterval:startTime:endTime:interval' ng-click='select(time,$index)' ng-class='{active:(activeIndex==$index)}'>" +
+                       // For each item, check if it is the last item. If it is, communicate the index to a method in the scope.
+                     "        {{$last?largestPossibleIndexIs($index):angular.noop()}}" +
+                       // Render a link into the list item, with the formatted time value.
+                     "        <a href='#' ng-click='preventDefault($event)'>{{time|fmTimeFormat:format}}</a>" +
+                     "      </li>" +
                      "    </ul>" +
                      "  </div>" +
                      "</div>",
@@ -157,18 +202,25 @@ angular.module( "fm.components", [] )
           format    : "=?",
           startTime : "=?",
           endTime   : "=?",
-          step      : "=?",
-          largeStep : "=?",
+          interval      : "=?",
+          largeInterval : "=?",
           isOpen    : "=?"
         },
         controller : "fmTimepickerController",
         require    : "ngModel",
         link       : function postLink( scope, element, attributes, controller ) {
           // Watch our input parameters and re-validate our view when they change.
-          scope.$watchCollection( "[startTime,endTime,step]", function() {
+          scope.$watchCollection( "[startTime,endTime,interval]", function() {
             scope.constrainToReference();
             validateView();
           } );
+
+          // Watch all time related parameters.
+          scope.$watchCollection( "[startTime,endTime,interval,ngModel]", function() {
+            // When they change, find the index of the element in the dropdown that relates to the current model value.
+            scope.findActiveIndex( scope.ngModel );
+          } );
+
 
           /**
            * Invoked when we need to update the view due to a changed model value.
@@ -177,7 +229,7 @@ angular.module( "fm.components", [] )
             // Convert the moment instance we got to a string in our desired format.
             var time = moment( controller.$modelValue ).format( scope.format );
             // Check if the given time is valid.
-            var timeValid = checkTimeValueValid( time ) && checkTimeValueWithinBounds( time ) && checkTimeValueFitsStep( time );
+            var timeValid = checkTimeValueValid( time ) && checkTimeValueWithinBounds( time ) && checkTimeValueFitsInterval( time );
 
             if( timeValid ) {
               // If the time is valid, store the time string in the scope used by the input box.
@@ -194,7 +246,7 @@ angular.module( "fm.components", [] )
           function resetValidity( to ) {
             controller.$setValidity( "time", to );
             controller.$setValidity( "bounds", to );
-            controller.$setValidity( "step", to );
+            controller.$setValidity( "interval", to );
           }
 
           /**
@@ -204,7 +256,7 @@ angular.module( "fm.components", [] )
           function validateView() {
             resetValidity( true );
             // Check if the string in the input box represents a valid date according to the rules set through parameters in our scope.
-            var timeValid = checkTimeValueValid( scope.time ) && checkTimeValueWithinBounds( scope.time ) && checkTimeValueFitsStep( scope.time );
+            var timeValid = checkTimeValueValid( scope.time ) && checkTimeValueWithinBounds( scope.time ) && checkTimeValueFitsInterval( scope.time );
             if( timeValid ) {
               // If the string is valid, convert it to a moment instance, store in the model and...
               controller.$setViewValue( moment( scope.time, scope.format ) );
@@ -249,29 +301,29 @@ angular.module( "fm.components", [] )
           }
 
           /**
-           * Check if a given string represents a time that lies on a the boundary of a time step.
+           * Check if a given string represents a time that lies on a the boundary of a time interval.
            * @param {String} timeString The timestamp in the expected format.
-           * @returns {boolean} true if the string represents a valid time and that time lies on a time step boundary; false otherwise.
+           * @returns {boolean} true if the string represents a valid time and that time lies on an interval boundary; false otherwise.
            */
-          function checkTimeValueFitsStep( timeString ) {
+          function checkTimeValueFitsInterval( timeString ) {
             var time = timeString ? moment( timeString, scope.format ) : moment.invalid();
             // Check first if the time string could be parsed as a valid timestamp.
             var isValid = time.isValid();
             if( isValid ) {
               // Calculate the amount of milliseconds that passed since the specified start time.
               var durationSinceStartTime = time.diff( scope.startTime );
-              // Calculate how many milliseconds are within the given time step.
-              var stepMilliseconds = scope.step.asMilliseconds();
+              // Calculate how many milliseconds are within the given time interval.
+              var intervalMilliseconds = scope.interval.asMilliseconds();
               // Check if the modulo operation has a remainder.
-              isValid = ( 0 == ( durationSinceStartTime % stepMilliseconds ) );
+              isValid = ( 0 == ( durationSinceStartTime % intervalMilliseconds ) );
             }
 
             if( !isValid ) {
-              controller.$setValidity( "step", false );
+              controller.$setValidity( "interval", false );
               controller.$setViewValue( null );
               return false;
             } else {
-              controller.$setValidity( "step", true );
+              controller.$setValidity( "interval", true );
               return true;
             }
           }
@@ -340,10 +392,17 @@ angular.module( "fm.components", [] )
           /**
            * Selects a given timestamp as the new value of the timepicker.
            * @param {Number} timestamp UNIX timestamp
+           * @param {Number} elementIndex The index of the time element in the dropdown list.
            */
-          scope.select = function( timestamp ) {
+          scope.select = function( timestamp, elementIndex ) {
+            // Construct a moment instance from the UNIX offset.
             var time = moment( timestamp );
+            // Format the time to store it in the input box.
             scope.time = time.format( scope.format );
+
+            // Store the selected index
+            scope.activeIndex = elementIndex;
+
             scope.update();
             closePopup();
           };
@@ -356,14 +415,6 @@ angular.module( "fm.components", [] )
             if( timeValid ) {
               controller.$setViewValue( moment( scope.time, scope.format ) );
             }
-          };
-
-          /**
-           * Determines whether a given timestamp in the list is currently the selected one.
-           * @param {Number} timestamp UNIX timestamp
-           */
-          scope.isActive = function( timestamp ) {
-            return moment( timestamp ).isSame( scope.modelPreview );
           };
 
           scope.handleKeyboardInput = function( event ) {
@@ -381,25 +432,29 @@ angular.module( "fm.components", [] )
                 break;
               case 33:
                 // Page up
-                scope.modelPreview.subtract( scope.largeStep );
+                scope.modelPreview.subtract( scope.largeInterval );
                 scope.modelPreview = scope.ensureTimeIsWithinBounds( scope.modelPreview );
+                scope.activeIndex = Math.max( 0, scope.activeIndex - scope.largeIntervalIndexJump );
                 break;
               case 34:
                 // Page down
-                scope.modelPreview.add( scope.largeStep );
+                scope.modelPreview.add( scope.largeInterval );
                 scope.modelPreview = scope.ensureTimeIsWithinBounds( scope.modelPreview );
+                scope.activeIndex = Math.max( 0, scope.activeIndex + scope.largeIntervalIndexJump );
                 break;
               case 38:
                 // Up arrow
                 openPopup();
-                scope.modelPreview.subtract( scope.step );
+                scope.modelPreview.subtract( scope.interval );
                 scope.modelPreview = scope.ensureTimeIsWithinBounds( scope.modelPreview );
+                scope.activeIndex = Math.max( 0, scope.activeIndex - 1 );
                 break;
               case 40:
                 // Down arrow
                 openPopup();
-                scope.modelPreview.add( scope.step );
+                scope.modelPreview.add( scope.interval );
                 scope.modelPreview = scope.ensureTimeIsWithinBounds( scope.modelPreview );
+                scope.activeIndex = Math.min( scope.largestPossibleIndex, scope.activeIndex + 1 );
                 break;
               default:
             }
@@ -412,6 +467,15 @@ angular.module( "fm.components", [] )
            */
           scope.preventDefault = function( event ) {
             event.preventDefault();
+          };
+
+          /**
+           * Remember the highest index of the existing list items.
+           * We use this to constrain the possible values for the index that marks a list item as active.
+           * @param {Number} index
+           */
+          scope.largestPossibleIndexIs = function( index ) {
+            scope.largestPossibleIndex = index;
           };
 
           var inputElement = element.find( "input" );
