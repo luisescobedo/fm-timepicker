@@ -64,6 +64,7 @@ angular.module( "fm.components", [] )
                  // Create day of reference
                  $scope.reference = $scope.reference || moment();
 
+                 $scope.style = $scope.style || "dropdown";
                  $scope.isOpen = $scope.isOpen || false;
                  $scope.format = $scope.format || "HH:mm";
                  $scope.startTime = $scope.startTime || $scope.reference.startOf( "day" );
@@ -171,14 +172,40 @@ angular.module( "fm.components", [] )
                  } )
                } )
 
+  .directive( "fmTimepickerToggle", function() {
+                return {
+                  restrict : "A",
+                  link     : function postLink( scope, element, attributes ) {
+                    // Toggle the popup when the toggle button is clicked.
+                    element.bind( "click", function() {
+                      if( scope.isOpen ) {
+                        scope.focusInputElement();
+                        scope.closePopup();
+                      } else {
+                        // Focusing the input element will automatically open the popup
+                        scope.focusInputElement();
+                      }
+                    } );
+                  }
+                }
+              } )
+
   .directive( "fmTimepicker", [
     "$timeout", function( $timeout ) {
       return {
         template   : "<div>" +
                      "  <div class='input-group'>" +
+                     "    <span class='input-group-btn' ng-if='style==\"sequential\"'>" +
+                     "      <button type='button' class='btn btn-default' ng-click='decrement()' ng-disabled='activeIndex==0'>" +
+                     "        <span class='glyphicon glyphicon-minus'></span>" +
+                     "      </button>" +
+                     "    </span>" +
                      "    <input type='text' class='form-control' ng-model='time' ng-keyup='handleKeyboardInput($event)' ng-change='update()'>" +
                      "    <span class='input-group-btn'>" +
-                     "      <button type='button' class='btn btn-default' ng-class='{active:isOpen}'>" +
+                     "      <button type='button' class='btn btn-default' ng-if='style==\"sequential\"' ng-click='increment()' ng-disabled='activeIndex==largestPossibleIndex'>" +
+                     "        <span class='glyphicon glyphicon-plus'></span>" +
+                     "      </button>" +
+                     "      <button type='button' class='btn btn-default' ng-if='style==\"dropdown\"' ng-class='{active:isOpen}' fm-timepicker-toggle>" +
                      "        <span class='glyphicon glyphicon-time'></span>" +
                      "      </button>" +
                      "    </span>" +
@@ -198,13 +225,14 @@ angular.module( "fm.components", [] )
         replace    : true,
         restrict   : "E",
         scope      : {
-          ngModel   : "=",
-          format    : "=?",
-          startTime : "=?",
-          endTime   : "=?",
+          ngModel       : "=",
+          format        : "=?",
+          startTime     : "=?",
+          endTime       : "=?",
           interval      : "=?",
           largeInterval : "=?",
-          isOpen    : "=?"
+          isOpen        : "=?",
+          style         : "=?"
         },
         controller : "fmTimepickerController",
         require    : "ngModel",
@@ -369,10 +397,12 @@ angular.module( "fm.components", [] )
             }
           }
 
+          // --------------- Scope methods ---------------
+
           /**
            * Close the popup dropdown list.
            */
-          function closePopup( delayed ) {
+          scope.closePopup = function( delayed ) {
             if( delayed ) {
               // Delay closing the popup by 200ms to ensure selection of
               // list items can happen before the popup is hidden.
@@ -385,9 +415,7 @@ angular.module( "fm.components", [] )
               scope.isOpen = false;
               ensureUpdatedView();
             }
-          }
-
-          // --------------- Scope methods ---------------
+          };
 
           /**
            * Selects a given timestamp as the new value of the timepicker.
@@ -404,7 +432,31 @@ angular.module( "fm.components", [] )
             scope.activeIndex = elementIndex;
 
             scope.update();
-            closePopup();
+            scope.closePopup();
+          };
+
+          scope.increment = function() {
+            if( scope.isOpen ) {
+              scope.modelPreview.add( scope.interval );
+              scope.modelPreview = scope.ensureTimeIsWithinBounds( scope.modelPreview );
+            } else {
+              scope.ngModel.add( scope.interval );
+              scope.ngModel = scope.ensureTimeIsWithinBounds( scope.ngModel );
+              scope.time = scope.ngModel.format( scope.format );
+            }
+            scope.activeIndex = Math.min( scope.largestPossibleIndex, scope.activeIndex + 1 );
+          };
+
+          scope.decrement = function() {
+            if( scope.isOpen ) {
+              scope.modelPreview.subtract( scope.interval );
+              scope.modelPreview = scope.ensureTimeIsWithinBounds( scope.modelPreview );
+            } else {
+              scope.ngModel.subtract( scope.interval );
+              scope.ngModel = scope.ensureTimeIsWithinBounds( scope.ngModel );
+              scope.time = scope.ngModel.format( scope.format );
+            }
+            scope.activeIndex = Math.max( 0, scope.activeIndex - 1 );
           };
 
           /**
@@ -428,7 +480,7 @@ angular.module( "fm.components", [] )
                 break;
               case 27:
                 // Escape
-                closePopup();
+                scope.closePopup();
                 break;
               case 33:
                 // Page up
@@ -447,16 +499,12 @@ angular.module( "fm.components", [] )
               case 38:
                 // Up arrow
                 openPopup();
-                scope.modelPreview.subtract( scope.interval );
-                scope.modelPreview = scope.ensureTimeIsWithinBounds( scope.modelPreview );
-                scope.activeIndex = Math.max( 0, scope.activeIndex - 1 );
+                scope.decrement();
                 break;
               case 40:
                 // Down arrow
                 openPopup();
-                scope.modelPreview.add( scope.interval );
-                scope.modelPreview = scope.ensureTimeIsWithinBounds( scope.modelPreview );
-                scope.activeIndex = Math.min( scope.largestPossibleIndex, scope.activeIndex + 1 );
+                scope.increment();
                 break;
               default:
             }
@@ -480,8 +528,11 @@ angular.module( "fm.components", [] )
             scope.largestPossibleIndex = index;
           };
 
+          scope.focusInputElement = function() {
+            $( inputElement ).focus();
+          };
+
           var inputElement = element.find( "input" );
-          var toggleButtonElement = element.find( "button" );
           var popupListElement = element.find( "ul" );
 
           /**
@@ -501,23 +552,10 @@ angular.module( "fm.components", [] )
               // This can happen if the input box is selected and the user toggles the dropdown.
               // This would cause a hide and close in rapid succession, so don't do it.
               if( !$( inputElement ).is( ":focus" ) ) {
-                closePopup();
+                scope.closePopup();
                 validateView();
               }
             }, 150 );
-          } );
-
-          /**
-           * Define the behavior of the dropdown toggle button.
-           */
-          toggleButtonElement.bind( "click", function() {
-            if( scope.isOpen ) {
-              $( inputElement ).focus();
-              closePopup();
-            } else {
-              // Focusing the input element will automatically open the popup
-              $( inputElement ).focus();
-            }
           } );
 
           popupListElement.bind( "mousedown", function( event ) {
