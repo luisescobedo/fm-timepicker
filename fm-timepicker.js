@@ -432,12 +432,14 @@ angular.module( "fm.components", [] )
                 break;
               case 33:
                 // Page up
+                openPopup();
                 scope.modelPreview.subtract( scope.largeInterval );
                 scope.modelPreview = scope.ensureTimeIsWithinBounds( scope.modelPreview );
                 scope.activeIndex = Math.max( 0, scope.activeIndex - scope.largeIntervalIndexJump );
                 break;
               case 34:
                 // Page down
+                openPopup();
                 scope.modelPreview.add( scope.largeInterval );
                 scope.modelPreview = scope.ensureTimeIsWithinBounds( scope.modelPreview );
                 scope.activeIndex = Math.min( scope.largestPossibleIndex, scope.activeIndex + scope.largeIntervalIndexJump );
