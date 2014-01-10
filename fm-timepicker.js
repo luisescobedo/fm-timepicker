@@ -112,7 +112,7 @@ angular.module( "fm.components", [] )
                    if( !$scope.endTime.isSame( $scope.reference, "day" ) ) {
                      $scope.endTime.year( $scope.reference.year() ).month( $scope.reference.month() ).date( $scope.reference.date() );
                    }
-                   if( !$scope.ngModel.isSame( $scope.reference, "day" ) ) {
+                   if( $scope.ngModel && !$scope.ngModel.isSame( $scope.reference, "day" ) ) {
                      $scope.ngModel.year( $scope.reference.year() ).month( $scope.reference.month() ).date( $scope.reference.date() );
                    }
                  };
