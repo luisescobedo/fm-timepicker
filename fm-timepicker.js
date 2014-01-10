@@ -69,7 +69,7 @@ angular.module( "fm.components", [] )
                  $scope.startTime = $scope.startTime || $scope.reference.startOf( "day" );
                  $scope.endTime = $scope.endTime || $scope.reference.endOf( "day" );
                  $scope.step = $scope.step || moment.duration( 30, "minutes" );
-
+                 $scope.largeStep = $scope.largeStep || moment.duration( 60, "minutes" );
 
                  // Round the model value up to the next valid time that fits the configured steps.
                  var modelMilliseconds = $scope.ngModel.valueOf();
@@ -116,15 +116,19 @@ angular.module( "fm.components", [] )
                  };
                  $scope.constrainToReference();
 
-                 // Calculate a larger step value for the given step.
-                 // This allows us to use the value for when we want to
-                 // increase or decrease the model in larger increments.
+                 // Check the supplied step for validity.
                  $scope.$watch( "step", function( newStep, oldStep ) {
                    if( newStep.asMilliseconds() < 1 ) {
                      console.error( "fm-timepicker: Supplied step length is smaller than 1ms! Reverting to default." );
                      $scope.step = moment.duration( 30, "minutes" );
                    }
-                   $scope.largeStep = moment.duration( newStep.asMilliseconds() * 5 );
+                 } );
+                 // Check the supplied large step for validity.
+                 $scope.$watch( "largeStep", function( newStep, oldStep ) {
+                   if( newStep.asMilliseconds() < 10 ) {
+                     console.error( "fm-timepicker: Supplied large step length is smaller than 10ms! Reverting to default." );
+                     $scope.largeStep = moment.duration( 60, "minutes" );
+                   }
                  } );
                } )
 
@@ -154,6 +158,7 @@ angular.module( "fm.components", [] )
           startTime : "=?",
           endTime   : "=?",
           step      : "=?",
+          largeStep : "=?",
           isOpen    : "=?"
         },
         controller : "fmTimepickerController",

@@ -16,7 +16,7 @@
           <label class="control-label col-sm-2" for="time">Test</label>
 
           <div class="col-sm-10">
-            <fm-timepicker id="time" name="time" ng-model="time" start-time="start" end-time="end" step="step" format="timeFormat"
+            <fm-timepicker id="time" name="time" ng-model="time" start-time="start" end-time="end" step="step" large-step="largeStep" format="timeFormat"
                            is-open="isOpen"></fm-timepicker>
             <p class="text-danger" ng-show="form.time.$error.time">The selected time is not a valid time understood by fm-timepicker.</p>
 
@@ -29,6 +29,7 @@
         <hr>
 
         <label class="text-muted">I/O</label>
+
         <div class="form-group">
           <label class="control-label col-sm-2" for="model">Model</label>
 
@@ -82,6 +83,16 @@
               step value. This minute input is just used for convenience in the demo environment.</p>
           </div>
         </div>
+        <div class="form-group">
+          <label class="control-label col-sm-2" for="largeStepMinutes">Large step (minutes)</label>
+
+          <div class="col-sm-10">
+            <input type="text" id="largeStepMinutes" class="form-control" ng-model="largeStepMinutes">
+
+            <p class="help-block">The "large step" is another <a href="http://momentjs.com/docs/#/durations/">moment.duration</a> instance that defines how far
+              we will skip through the list when using the PageUp/PageDown keys. This has no effect on the available options.</p>
+          </div>
+        </div>
 
         <div class="form-group">
           <label class="col-sm-2 control-label">Dropdown open?</label>
@@ -114,6 +125,7 @@
                   $scope.startTime = "9:00";
                   $scope.endTime = "18:00";
                   $scope.stepMinutes = 10;
+                  $scope.largeStepMinutes = 60;
 
                   // Parameters that will actually be passed into the timepicker.
                   $scope.time = moment( "15:00", $scope.timeFormat );
@@ -129,6 +141,9 @@
                   } );
                   $scope.$watch( "stepMinutes", function( newStep ) {
                     $scope.step = moment.duration( parseInt( newStep ), "minutes" );
+                  } );
+                  $scope.$watch( "largeStepMinutes", function( newStep ) {
+                    $scope.largeStep = moment.duration( parseInt( newStep ), "minutes" );
                   } );
                 } );
 </script>
