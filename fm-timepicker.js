@@ -28,7 +28,10 @@
 
 "use strict";
 
-angular.module( "fm.components", [] )
+// Declare fmComponents module if it doesn't exist.
+try { angular.module( "fm.components" ); } catch( ignored ) { angular.module( "fm.components", [] ); }
+
+angular.module( "fm.components" )
   .filter( "fmTimeFormat", function() {
              return function( input, format ) {
                if( typeof input === "number" ) {
