@@ -82,6 +82,36 @@ angular.module( "fm.components", [] )
                  $scope.ngModel = moment( modelMilliseconds );
 
                  /**
+                  * Makes sure that the moment instances we work with all use the same day as reference.
+                  * We need this because we might construct moment instances from all kinds of sources,
+                  * in the time picker, we only care about time values though and we still want to compare
+                  * them through the moment mechanics (which respect the full date).
+                  * @param {Moment} [day] If day is given, it will be constrained to the refence day, otherwise all members will be constrained.
+                  * @return {Moment} If day was provided as parameter, it will be returned as well.
+                  */
+                 $scope.constrainToReference = function( day ) {
+                   if( day ) {
+                     if( !day.isSame( $scope.reference, "day" ) ) {
+                       day.year( $scope.reference.year() ).month( $scope.reference.month() ).date( $scope.reference.date() );
+                     }
+                     return day;
+
+                   } else {
+                     if( !$scope.startTime.isSame( $scope.reference, "day" ) ) {
+                       $scope.startTime.year( $scope.reference.year() ).month( $scope.reference.month() ).date( $scope.reference.date() );
+                     }
+                     if( !$scope.endTime.isSame( $scope.reference, "day" ) ) {
+                       $scope.endTime.year( $scope.reference.year() ).month( $scope.reference.month() ).date( $scope.reference.date() );
+                     }
+                     if( $scope.ngModel && !$scope.ngModel.isSame( $scope.reference, "day" ) ) {
+                       $scope.ngModel.year( $scope.reference.year() ).month( $scope.reference.month() ).date( $scope.reference.date() );
+                     }
+                   }
+                   return null;
+                 };
+                 $scope.constrainToReference();
+
+                 /**
                   * Returns a time value that is within the bounds given by the start and end time parameters.
                   * @param {Moment} time The time value that should be constrained to be within the given bounds.
                   * @returns {Moment} A new time value within the bounds, or the input instance.
@@ -97,26 +127,6 @@ angular.module( "fm.components", [] )
                    return time;
                  };
                  $scope.ngModel = $scope.ensureTimeIsWithinBounds( $scope.ngModel );
-
-
-                 /**
-                  * Makes sure that the moment instances we work with all use the same day as reference.
-                  * We need this because we might construct moment instances from all kinds of sources,
-                  * in the time picker, we only care about time values though and we still want to compare
-                  * them through the moment mechanics (which respect the full date).
-                  */
-                 $scope.constrainToReference = function() {
-                   if( !$scope.startTime.isSame( $scope.reference, "day" ) ) {
-                     $scope.startTime.year( $scope.reference.year() ).month( $scope.reference.month() ).date( $scope.reference.date() );
-                   }
-                   if( !$scope.endTime.isSame( $scope.reference, "day" ) ) {
-                     $scope.endTime.year( $scope.reference.year() ).month( $scope.reference.month() ).date( $scope.reference.date() );
-                   }
-                   if( $scope.ngModel && !$scope.ngModel.isSame( $scope.reference, "day" ) ) {
-                     $scope.ngModel.year( $scope.reference.year() ).month( $scope.reference.month() ).date( $scope.reference.date() );
-                   }
-                 };
-                 $scope.constrainToReference();
 
                  /**
                   * Utility method to find the index of an item, in our collection of possible values, that matches a given time value.
@@ -229,6 +239,7 @@ angular.module( "fm.components", [] )
           format        : "=?",
           startTime     : "=?",
           endTime       : "=?",
+          reference     : "=?",
           interval      : "=?",
           largeInterval : "=?",
           isOpen        : "=?",
@@ -287,7 +298,9 @@ angular.module( "fm.components", [] )
             var timeValid = checkTimeValueValid( scope.time ) && checkTimeValueWithinBounds( scope.time ) && checkTimeValueFitsInterval( scope.time );
             if( timeValid ) {
               // If the string is valid, convert it to a moment instance, store in the model and...
-              controller.$setViewValue( moment( scope.time, scope.format ) );
+              var newTime = moment( scope.time, scope.format );
+              newTime = scope.constrainToReference( newTime );
+              controller.$setViewValue( newTime );
               // ...convert it back to a string in our desired format.
               // This allows the user to input any partial format that moment accepts and we'll convert it to the format we expect.
               scope.time = moment( scope.time, scope.format ).format( scope.format );
@@ -318,6 +331,7 @@ angular.module( "fm.components", [] )
            */
           function checkTimeValueWithinBounds( timeString ) {
             var time = timeString ? moment( timeString, scope.format ) : moment.invalid();
+            time = scope.constrainToReference( time );
             if( !time.isValid() || time.isBefore( scope.startTime ) || time.isAfter( scope.endTime ) ) {
               controller.$setValidity( "bounds", false );
               controller.$setViewValue( null );
