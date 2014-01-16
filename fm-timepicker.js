@@ -176,7 +176,7 @@ angular.module( "fm.components" )
                    var newLargeIntervalMilliseconds = newLargeInterval.asMilliseconds();
                    // Check if the large interval is a multiple of the interval.
                    if( 0 != ( newLargeIntervalMilliseconds % newIntervalMilliseconds ) ) {
-                     console.log( "[fm-timepicker] Warning: Large interval is not a multiple of interval! Using internally computed value instead." );
+                     console.warn( "[fm-timepicker] Warning: Large interval is not a multiple of interval! Using internally computed value instead." );
                      $scope.largeInterval = moment.duration( newIntervalMilliseconds * 5 );
                      newLargeIntervalMilliseconds = $scope.largeInterval.asMilliseconds();
                    }
