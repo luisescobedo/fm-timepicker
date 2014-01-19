@@ -482,7 +482,9 @@ angular.module( "fm.components" )
           scope.update = function() {
             var timeValid = checkTimeValueValid( scope.time ) && checkTimeValueWithinBounds( scope.time );
             if( timeValid ) {
-              controller.$setViewValue( moment( scope.time, scope.format ) );
+              var newTime = moment( scope.time, scope.format );
+              newTime = scope.constrainToReference( newTime );
+              controller.$setViewValue( newTime );
             }
           };
 
